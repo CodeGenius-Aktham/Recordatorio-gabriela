@@ -78,13 +78,13 @@
 
     <div id="alert-modal">
         <div class="modal-content animate-slide">
-            <div class="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            <div class="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
             </div>
-            <h3 class="text-xl font-bold mb-2">Conexión en curso</h3>
-            <p class="text-white/50 text-sm mb-6">Estamos estableciendo el motor de sincronización. Espera un momento para realizar esta acción.</p>
+            <h3 class="text-xl font-bold mb-2">Modo Local Activo</h3>
+            <p class="text-white/50 text-sm mb-6">No se detectó configuración de nube o hay un error de permisos. Tus notas se guardarán de forma segura en este navegador.</p>
             <button onclick="closeModal()" class="w-full py-3 bg-white text-black font-bold rounded-xl btn-animate">Entendido</button>
         </div>
     </div>
@@ -95,12 +95,8 @@
                 <h2 class="text-xs font-bold uppercase tracking-widest text-white/30 mb-6">Historial</h2>
                 <div id="history-list" class="space-y-6 overflow-y-auto max-h-[calc(100vh-160px)]">
                     <div id="group-today">
-                        <h3 class="text-[10px] text-white/20 mb-3 px-2">HOY</h3>
+                        <h3 class="text-[10px] text-white/20 mb-3 px-2 text-blue-400">HOY</h3>
                         <div class="space-y-1" id="list-today"></div>
-                    </div>
-                    <div id="group-yesterday">
-                        <h3 class="text-[10px] text-white/20 mb-3 px-2">AYER</h3>
-                        <div class="space-y-1" id="list-yesterday"></div>
                     </div>
                     <div id="group-older">
                         <h3 class="text-[10px] text-white/20 mb-3 px-2">ANTERIORES</h3>
@@ -108,7 +104,7 @@
                     </div>
                 </div>
             </div>
-            <button id="new-note" class="btn-animate mt-auto m-4 p-3 rounded-xl bg-white text-black font-semibold text-sm">
+            <button id="new-note-btn" class="btn-animate mt-auto m-4 p-3 rounded-xl bg-white text-black font-semibold text-sm">
                 Nueva Nota
             </button>
         </aside>
@@ -119,11 +115,11 @@
                     <button id="toggle-sidebar" class="btn-animate md:hidden text-white/50 hover:text-white">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                     </button>
-                    <div id="connection-status" class="w-2 h-2 rounded-full bg-yellow-500"></div>
+                    <div id="connection-status" class="w-2 h-2 rounded-full bg-blue-500"></div>
                     <h1 class="text-sm font-medium tracking-tight text-white/90">SyncNote <span id="room-display" class="text-white/40 ml-2"></span></h1>
                 </div>
                 <div class="flex items-center gap-4">
-                    <span id="sync-notice" class="hidden text-[10px] text-white/30 uppercase tracking-widest animate-pulse">Sincronizando...</span>
+                    <span id="sync-notice" class="hidden text-[10px] text-white/30 uppercase tracking-widest animate-pulse">Guardando...</span>
                     <button id="copy-link" class="btn-animate text-xs bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full font-medium border border-white/5">
                         Compartir
                     </button>
@@ -136,12 +132,12 @@
                         <svg class="w-4 h-4 text-white opacity-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </div>
                     <div class="flex-1">
-                        <input type="text" id="note-title" placeholder="Título de la reunión..." 
+                        <input type="text" id="note-title" placeholder="Título de la nota..." 
                                class="bg-transparent text-3xl md:text-5xl font-bold placeholder-white/5 outline-none w-full mb-2">
-                        <div id="note-date" class="text-xs text-white/20 font-medium tracking-wide">Cargando...</div>
+                        <div id="note-date" class="text-xs text-white/20 font-medium tracking-wide">Listo para escribir</div>
                     </div>
                 </div>
-                <textarea id="note-content" placeholder="Escribe aquí los puntos clave..." 
+                <textarea id="note-content" placeholder="Escribe aquí tus ideas..." 
                           class="flex-1 w-full text-lg md:text-2xl leading-relaxed text-white/60 placeholder-white/5"></textarea>
             </main>
             
@@ -153,166 +149,185 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, query } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-
         // Elementos DOM
         const titleInput = document.getElementById('note-title');
         const contentInput = document.getElementById('note-content');
         const mainCheck = document.getElementById('main-check');
         const dateDisplay = document.getElementById('note-date');
         const connectionStatus = document.getElementById('connection-status');
-        const historyList = {
-            today: document.getElementById('list-today'),
-            yesterday: document.getElementById('list-yesterday'),
-            older: document.getElementById('list-older')
-        };
+        const historyListToday = document.getElementById('list-today');
+        const historyListOlder = document.getElementById('list-older');
+        const syncNotice = document.getElementById('sync-notice');
 
         window.closeModal = () => document.getElementById('alert-modal').style.display = 'none';
-        const showWarning = () => document.getElementById('alert-modal').style.display = 'flex';
 
-        // Lógica de Configuración Segura
-        let firebaseConfig = null;
-        try {
-            // Verificamos que __firebase_config exista y tenga contenido válido antes de intentar parsear
-            if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config !== 'null') {
-                firebaseConfig = JSON.parse(__firebase_config);
+        // Referencias globales de funciones Firebase
+        let f_doc, f_onSnapshot, f_setDoc, f_updateDoc;
+
+        // Gestión de Datos
+        let isFirebaseEnabled = false;
+        let currentNoteId = new URLSearchParams(window.location.search).get('id') || 'default';
+        let notesStore = JSON.parse(localStorage.getItem('syncnotes_db') || '{}');
+
+        async function initApp() {
+            let firebaseConfig = null;
+            try {
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                }
+            } catch (e) {}
+
+            if (firebaseConfig && firebaseConfig.apiKey) {
+                try {
+                    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js");
+                    const firestore = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js");
+                    const authMod = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js");
+
+                    f_doc = firestore.doc;
+                    f_onSnapshot = firestore.onSnapshot;
+                    f_setDoc = firestore.setDoc;
+                    f_updateDoc = firestore.updateDoc;
+
+                    const app = initializeApp(firebaseConfig);
+                    const db = firestore.getFirestore(app);
+                    const auth = authMod.getAuth(app);
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'prod-v1';
+
+                    // Autenticación primero (REGLA 3)
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await authMod.signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await authMod.signInAnonymously(auth);
+                    }
+
+                    authMod.onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            isFirebaseEnabled = true;
+                            connectionStatus.classList.replace('bg-blue-500', 'bg-green-500');
+                            setupFirebaseSync(db, appId);
+                        } else {
+                            setupLocalSync();
+                        }
+                    });
+                } catch (err) {
+                    console.error("Firebase Init Error:", err);
+                    setupLocalSync();
+                }
+            } else {
+                setupLocalSync();
             }
-        } catch (e) {
-            console.warn("Fallo al cargar configuración de Firebase.");
         }
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'prod-v1';
-        let isConnected = false;
+        function setupLocalSync() {
+            document.getElementById('room-display').innerText = "(Local)";
+            loadNote(currentNoteId);
+            renderHistory();
 
-        // Solo inicializamos si tenemos una API Key válida para evitar errores 404 de recursos de red
-        if (firebaseConfig && firebaseConfig.apiKey) {
-            const app = initializeApp(firebaseConfig);
-            const db = getFirestore(app);
-            const auth = getAuth(app);
-            
-            const urlParams = new URLSearchParams(window.location.search);
-            let currentId = urlParams.get('id') || 'index';
-
-            const initAuth = async () => {
-                try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch (err) {
-                    console.error("Error en autenticación:", err);
-                }
+            const localSave = () => {
+                notesStore[currentNoteId] = {
+                    id: currentNoteId,
+                    title: titleInput.value,
+                    content: contentInput.value,
+                    isDone: mainCheck.classList.contains('bg-[#34c759]'),
+                    lastUpdated: Date.now()
+                };
+                localStorage.setItem('syncnotes_db', JSON.stringify(notesStore));
+                showSyncNotice();
+                renderHistory();
             };
 
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    isConnected = true;
-                    connectionStatus.style.backgroundColor = '#34c759';
-                    setupSync(db, auth, currentId);
-                    loadHistory(db, auth, currentId);
+            titleInput.oninput = localSave;
+            contentInput.oninput = localSave;
+            mainCheck.onclick = () => {
+                toggleCheckUI();
+                localSave();
+            };
+        }
+
+        function setupFirebaseSync(db, appId) {
+            // Ruta obligatoria (REGLA 1): artifacts/{appId}/public/data/{collectionName}/{docId}
+            const docRef = f_doc(db, 'artifacts', appId, 'public', 'data', 'notes', currentNoteId);
+            document.getElementById('room-display').innerText = `#${currentNoteId}`;
+
+            // Suscripción con manejo de errores (requerido para evitar bloqueos silenciosos)
+            f_onSnapshot(docRef, (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (document.activeElement !== titleInput) titleInput.value = data.title || "";
+                    if (document.activeElement !== contentInput) contentInput.value = data.content || "";
+                    setCheckUI(data.isDone);
+                    dateDisplay.innerText = "Sincronizado con la nube";
+                } else {
+                    f_setDoc(docRef, { title: "", content: "", isDone: false, lastUpdated: Date.now() })
+                        .catch(err => console.error("Create Doc Error:", err));
                 }
+            }, (err) => {
+                console.error("Permission or Snapshot error:", err);
+                // Si falla por permisos, volvemos a modo local para no romper la app
+                setupLocalSync();
+                document.getElementById('connection-status').classList.replace('bg-green-500', 'bg-red-500');
             });
 
-            async function setupSync(db, auth, roomId) {
-                if (!auth.currentUser) return;
-                
-                // Ruta estricta de Firestore
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'notes', roomId);
-                document.getElementById('room-display').innerText = `#${roomId}`;
-
-                onSnapshot(docRef, (snap) => {
-                    if (snap.exists()) {
-                        const data = snap.data();
-                        if (document.activeElement !== titleInput) titleInput.value = data.title || "";
-                        if (document.activeElement !== contentInput) contentInput.value = data.content || "";
-                        updateCheckUI(data.isDone);
-                        dateDisplay.innerText = `Sincronizado: ${new Date().toLocaleTimeString()}`;
-                        updateCharCount();
-                    } else {
-                        setDoc(docRef, { title: "", content: "", isDone: false, lastUpdated: Date.now() })
-                        .catch(err => console.error("Error al crear documento:", err));
-                    }
-                }, (error) => {
-                    console.error("Error en snapshot de Firestore:", error);
-                });
-
-                const save = () => {
-                    if (!isConnected) return;
-                    updateDoc(docRef, {
-                        title: titleInput.value,
-                        content: contentInput.value,
-                        lastUpdated: Date.now()
-                    }).catch(err => console.error("Error al guardar:", err));
-                };
-                
-                titleInput.oninput = save;
-                contentInput.oninput = save;
-                
-                mainCheck.onclick = () => {
-                    const isDone = !mainCheck.classList.contains('bg-[#34c759]');
-                    updateCheckUI(isDone);
-                    updateDoc(docRef, { isDone, lastUpdated: Date.now() });
-                };
-            }
-
-            async function loadHistory(db, auth, currentRoomId) {
-                if (!auth.currentUser) return;
-                try {
-                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'notes');
-                    const q = query(colRef);
-                    const snaps = await getDocs(q);
-                    
-                    const docs = [];
-                    snaps.forEach(s => docs.push({ id: s.id, ...s.data() }));
-                    
-                    // Ordenamos en memoria para evitar errores de índices en Firebase
-                    docs.sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
-
-                    const today = new Date().setHours(0,0,0,0);
-                    const yesterday = today - 86400000;
-
-                    Object.values(historyList).forEach(el => el.innerHTML = '');
-                    docs.forEach(d => {
-                        const div = document.createElement('div');
-                        div.className = `sidebar-item p-3 rounded-lg cursor-pointer flex items-center gap-3 ${d.id === currentRoomId ? 'active-note' : ''}`;
-                        div.innerHTML = `
-                            <div class="w-1.5 h-1.5 rounded-full ${d.isDone ? 'bg-[#34c759]' : 'bg-white/10'}"></div>
-                            <div class="truncate text-xs font-medium text-white/80">${d.title || 'Sin título'}</div>
-                        `;
-                        div.onclick = () => { window.location.search = `?id=${d.id}`; };
-                        
-                        const time = d.lastUpdated || 0;
-                        if (time >= today) historyList.today.appendChild(div);
-                        else if (time >= yesterday) historyList.yesterday.appendChild(div);
-                        else historyList.older.appendChild(div);
-                    });
-                } catch (e) {
-                    console.error("Error cargando historial:", e);
-                }
-            }
-
-            initAuth();
-        } else {
-            // MODO LOCAL / FALLBACK (Evita errores 404 al no intentar conectar a servicios inexistentes)
-            dateDisplay.innerText = "Estado: Local (Sin Sincronizar)";
-            connectionStatus.style.backgroundColor = '#ff3b30'; 
+            const firebaseSave = () => {
+                showSyncNotice();
+                f_updateDoc(docRef, {
+                    title: titleInput.value,
+                    content: contentInput.value,
+                    lastUpdated: Date.now()
+                }).catch(err => console.error("Update Error:", err));
+            };
             
-            document.getElementById('new-note').onclick = showWarning;
-            document.getElementById('copy-link').onclick = showWarning;
+            titleInput.oninput = firebaseSave;
+            contentInput.oninput = firebaseSave;
             mainCheck.onclick = () => {
-                const isDone = !mainCheck.classList.contains('bg-[#34c759]');
-                updateCheckUI(isDone);
+                const newState = !mainCheck.classList.contains('bg-[#34c759]');
+                setCheckUI(newState);
+                f_updateDoc(docRef, { isDone: newState, lastUpdated: Date.now() })
+                    .catch(err => console.error("Check Update Error:", err));
             };
         }
 
-        function updateCheckUI(done) {
+        function loadNote(id) {
+            const note = notesStore[id] || { title: "", content: "", isDone: false };
+            titleInput.value = note.title || "";
+            contentInput.value = note.content || "";
+            setCheckUI(note.isDone);
+            updateCharCount();
+        }
+
+        function renderHistory() {
+            historyListToday.innerHTML = '';
+            historyListOlder.innerHTML = '';
+            const today = new Date().setHours(0,0,0,0);
+
+            Object.values(notesStore)
+                .sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0))
+                .forEach(note => {
+                    const div = document.createElement('div');
+                    div.className = `sidebar-item p-3 rounded-lg cursor-pointer flex items-center gap-3 ${note.id === currentNoteId ? 'active-note' : ''}`;
+                    div.innerHTML = `
+                        <div class="w-1.5 h-1.5 rounded-full ${note.isDone ? 'bg-[#34c759]' : 'bg-white/10'}"></div>
+                        <div class="truncate text-xs font-medium text-white/80">${note.title || 'Sin título'}</div>
+                    `;
+                    div.onclick = () => {
+                        window.location.search = `?id=${note.id}`;
+                    };
+                    
+                    if (note.lastUpdated >= today) historyListToday.appendChild(div);
+                    else historyListOlder.appendChild(div);
+                });
+        }
+
+        function setCheckUI(done) {
             const icon = mainCheck.querySelector('svg');
             mainCheck.classList.toggle('bg-[#34c759]', !!done);
             mainCheck.classList.toggle('border-[#34c759]', !!done);
             if (icon) icon.classList.toggle('opacity-0', !done);
+        }
+
+        function toggleCheckUI() {
+            const isDone = !mainCheck.classList.contains('bg-[#34c759]');
+            setCheckUI(isDone);
         }
 
         function updateCharCount() {
@@ -320,9 +335,30 @@
             document.getElementById('char-count').innerText = `${total} caracteres`;
         }
 
-        titleInput.addEventListener('input', updateCharCount);
-        contentInput.addEventListener('input', updateCharCount);
+        function showSyncNotice() {
+            syncNotice.classList.remove('hidden');
+            setTimeout(() => syncNotice.classList.add('hidden'), 1000);
+        }
+
+        document.getElementById('new-note-btn').onclick = () => {
+            const newId = 'note_' + Math.random().toString(36).substr(2, 9);
+            window.location.search = `?id=${newId}`;
+        };
+
         document.getElementById('toggle-sidebar').onclick = () => document.getElementById('sidebar').classList.toggle('hidden');
+        
+        document.getElementById('copy-link').onclick = () => {
+            const url = window.location.href;
+            const el = document.createElement('textarea');
+            el.value = url;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            dateDisplay.innerText = "¡Enlace copiado al portapapeles!";
+        };
+
+        initApp();
     </script>
 </body>
 </html>
