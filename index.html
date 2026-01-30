@@ -76,7 +76,6 @@
 </head>
 <body class="h-screen flex overflow-hidden flex-col">
 
-    <!-- Modal de Alerta -->
     <div id="alert-modal">
         <div class="modal-content animate-slide">
             <div class="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -139,7 +138,7 @@
                     <div class="flex-1">
                         <input type="text" id="note-title" placeholder="Título de la reunión..." 
                                class="bg-transparent text-3xl md:text-5xl font-bold placeholder-white/5 outline-none w-full mb-2">
-                        <div id="note-date" class="text-xs text-white/20 font-medium tracking-wide">Iniciando conexión segura...</div>
+                        <div id="note-date" class="text-xs text-white/20 font-medium tracking-wide">Cargando...</div>
                     </div>
                 </div>
                 <textarea id="note-content" placeholder="Escribe aquí los puntos clave..." 
@@ -155,130 +154,108 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, query } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        // FALLBACK LOGIC para evitar el error de variable no definida
-        let firebaseConfig = {};
+        // Elementos DOM
+        const titleInput = document.getElementById('note-title');
+        const contentInput = document.getElementById('note-content');
+        const mainCheck = document.getElementById('main-check');
+        const dateDisplay = document.getElementById('note-date');
+        const connectionStatus = document.getElementById('connection-status');
+        const historyList = {
+            today: document.getElementById('list-today'),
+            yesterday: document.getElementById('list-yesterday'),
+            older: document.getElementById('list-older')
+        };
+
+        window.closeModal = () => document.getElementById('alert-modal').style.display = 'none';
+        const showWarning = () => document.getElementById('alert-modal').style.display = 'flex';
+
+        // Lógica de Configuración Segura
+        let firebaseConfig = null;
         try {
-            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        } catch (e) {
-            console.warn("Configuración de Firebase no disponible.");
-        }
+            if (typeof __firebase_config !== 'undefined') {
+                firebaseConfig = JSON.parse(__firebase_config);
+            }
+        } catch (e) {}
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'demo-local';
-        const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'prod-v1';
+        let isConnected = false;
 
-        // Solo inicializar si hay config
-        if (firebaseConfig.apiKey) {
+        if (firebaseConfig && firebaseConfig.apiKey) {
             const app = initializeApp(firebaseConfig);
             const db = getFirestore(app);
             const auth = getAuth(app);
-
-            // State
+            
             const urlParams = new URLSearchParams(window.location.search);
-            let currentRoomId = urlParams.get('id') || 'nota-principal';
-            let isRemoteUpdate = false;
-            let isDone = false;
-            let saveTimeout = null;
-            let isConnected = false;
+            let currentId = urlParams.get('id') || 'index';
 
-            // DOM Elements
-            const titleInput = document.getElementById('note-title');
-            const contentInput = document.getElementById('note-content');
-            const mainCheck = document.getElementById('main-check');
-            const dateDisplay = document.getElementById('note-date');
-            const connectionStatus = document.getElementById('connection-status');
-            const historyList = {
-                today: document.getElementById('list-today'),
-                yesterday: document.getElementById('list-yesterday'),
-                older: document.getElementById('list-older')
-            };
-
-            // Modal logic
-            window.closeModal = () => {
-                document.getElementById('alert-modal').style.display = 'none';
-            };
-
-            const showConnectionWarning = () => {
-                document.getElementById('alert-modal').style.display = 'flex';
-            };
-
-            // Auth
             const initAuth = async () => {
-                try {
-                    if (initialToken) await signInWithCustomToken(auth, initialToken);
-                    else await signInAnonymously(auth);
-                } catch (error) { console.error("Auth error:", error); }
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
             };
 
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     isConnected = true;
                     connectionStatus.style.backgroundColor = '#34c759';
-                    initSync(db, auth, currentRoomId);
-                    loadHistory(db, auth, currentRoomId);
+                    setupSync(db, auth, currentId);
+                    loadHistory(db, auth, currentId);
                 }
             });
 
-            // Sync
-            function initSync(db, auth, roomId) {
+            async function setupSync(db, auth, roomId) {
+                if (!auth.currentUser) return;
+                
+                // REGLA 1: Usar la ruta estricta /artifacts/{appId}/public/data/{collection}
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'notes', roomId);
                 document.getElementById('room-display').innerText = `#${roomId}`;
 
                 onSnapshot(docRef, (snap) => {
                     if (snap.exists()) {
                         const data = snap.data();
-                        if (!isRemoteUpdate) {
-                            isRemoteUpdate = true;
-                            if (document.activeElement !== titleInput) titleInput.value = data.title || "";
-                            if (document.activeElement !== contentInput) contentInput.value = data.content || "";
-                            isDone = data.isDone || false;
-                            updateCheckUI(isDone);
-                            dateDisplay.innerText = `Sincronizado: ${new Date(data.lastUpdated).toLocaleTimeString()}`;
-                            updateCharCount();
-                            isRemoteUpdate = false;
-                        }
+                        if (document.activeElement !== titleInput) titleInput.value = data.title || "";
+                        if (document.activeElement !== contentInput) contentInput.value = data.content || "";
+                        updateCheckUI(data.isDone);
+                        dateDisplay.innerText = `Sincronizado: ${new Date().toLocaleTimeString()}`;
+                        updateCharCount();
                     } else {
-                        setDoc(docRef, { 
-                            title: "", content: "", isDone: false, 
-                            lastUpdated: Date.now(), createdAt: Date.now() 
-                        }).catch(() => {});
+                        setDoc(docRef, { title: "", content: "", isDone: false, lastUpdated: Date.now() })
+                        .catch(err => console.error("Error creating doc:", err));
                     }
+                }, (error) => {
+                    console.error("Firestore snapshot error:", error);
                 });
 
                 const save = () => {
-                    if (isRemoteUpdate || !auth.currentUser) return;
-                    clearTimeout(saveTimeout);
-                    saveTimeout = setTimeout(() => {
-                        document.getElementById('sync-notice').classList.remove('hidden');
-                        updateDoc(docRef, {
-                            title: titleInput.value,
-                            content: contentInput.value,
-                            isDone: isDone,
-                            lastUpdated: Date.now()
-                        }).then(() => loadHistory(db, auth, roomId))
-                          .finally(() => {
-                            setTimeout(() => document.getElementById('sync-notice').classList.add('hidden'), 800);
-                        });
-                    }, 600); 
+                    if (!isConnected) return;
+                    updateDoc(docRef, {
+                        title: titleInput.value,
+                        content: contentInput.value,
+                        lastUpdated: Date.now()
+                    }).catch(err => console.error("Save error:", err));
                 };
-
+                
                 titleInput.oninput = save;
                 contentInput.oninput = save;
-                mainCheck.onclick = () => {
-                    isDone = !isDone;
-                    updateCheckUI(isDone);
-                    save();
-                };
             }
 
-            async function loadHistory(db, auth, roomId) {
+            async function loadHistory(db, auth, currentRoomId) {
+                if (!auth.currentUser) return;
                 try {
+                    // REGLA 1: Ruta estricta para colecciones
                     const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'notes');
-                    const snaps = await getDocs(colRef);
+                    const q = query(colRef);
+                    const snaps = await getDocs(q);
+                    
                     const docs = [];
-                    snaps.forEach(s => docs.push({id: s.id, ...s.data()}));
+                    snaps.forEach(s => docs.push({ id: s.id, ...s.data() }));
+                    
+                    // REGLA 2: Ordenar en memoria JS para evitar errores de índices complejos
                     docs.sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
 
                     const today = new Date().setHours(0,0,0,0);
@@ -287,10 +264,10 @@
                     Object.values(historyList).forEach(el => el.innerHTML = '');
                     docs.forEach(d => {
                         const div = document.createElement('div');
-                        div.className = `sidebar-item p-3 rounded-lg cursor-pointer flex items-center gap-3 ${d.id === roomId ? 'active-note' : ''}`;
+                        div.className = `sidebar-item p-3 rounded-lg cursor-pointer flex items-center gap-3 ${d.id === currentRoomId ? 'active-note' : ''}`;
                         div.innerHTML = `
                             <div class="w-1.5 h-1.5 rounded-full ${d.isDone ? 'bg-[#34c759]' : 'bg-white/10'}"></div>
-                            <div class="truncate text-xs font-medium text-white/80">${d.title || 'Nota sin título'}</div>
+                            <div class="truncate text-xs font-medium text-white/80">${d.title || 'Sin título'}</div>
                         `;
                         div.onclick = () => { window.location.search = `?id=${d.id}`; };
                         
@@ -299,62 +276,36 @@
                         else if (time >= yesterday) historyList.yesterday.appendChild(div);
                         else historyList.older.appendChild(div);
                     });
-                } catch (e) {}
+                } catch (e) {
+                    console.error("Load history error:", e);
+                }
             }
-
-            // UI Actions
-            document.getElementById('copy-link').onclick = () => {
-                if (!isConnected) return showConnectionWarning();
-                const url = window.location.href;
-                const temp = document.createElement("input");
-                document.body.appendChild(temp);
-                temp.value = url;
-                temp.select();
-                document.execCommand("copy");
-                document.body.removeChild(temp);
-                const btn = document.getElementById('copy-link');
-                btn.innerText = "¡Enlace copiado!";
-                setTimeout(() => btn.innerText = "Compartir", 2000);
-            };
-
-            document.getElementById('new-note').onclick = () => {
-                if (!isConnected) return showConnectionWarning();
-                window.location.search = `?id=nota-${Math.random().toString(36).substring(2, 7)}`;
-            };
 
             initAuth();
         } else {
-            // Modo Demo sin Firebase
-            dateDisplay.innerText = "Modo Vista Previa (Sin conexión)";
-            connectionStatus.style.backgroundColor = '#8e8e93';
+            // MODO LOCAL (GitHub Pages sin Firebase configurado)
+            dateDisplay.innerText = "Estado: Local (Sin Sincronizar)";
+            connectionStatus.style.backgroundColor = '#ff3b30'; 
             
-            document.getElementById('new-note').onclick = showConnectionWarning;
-            document.getElementById('copy-link').onclick = showConnectionWarning;
-            window.closeModal = () => {
-                document.getElementById('alert-modal').style.display = 'none';
-            };
+            document.getElementById('new-note').onclick = showWarning;
+            document.getElementById('copy-link').onclick = showWarning;
         }
 
         function updateCheckUI(done) {
-            const mc = document.getElementById('main-check');
-            const icon = mc.querySelector('svg');
-            if(done) {
-                mc.classList.add('bg-[#34c759]', 'border-[#34c759]');
-                icon.classList.remove('opacity-0');
-            } else {
-                mc.classList.remove('bg-[#34c759]', 'border-[#34c759]');
-                icon.classList.add('opacity-0');
-            }
+            const icon = mainCheck.querySelector('svg');
+            mainCheck.classList.toggle('bg-[#34c759]', !!done);
+            mainCheck.classList.toggle('border-[#34c759]', !!done);
+            if (icon) icon.classList.toggle('opacity-0', !done);
         }
 
         function updateCharCount() {
-            const total = document.getElementById('note-title').value.length + document.getElementById('note-content').value.length;
+            const total = (titleInput.value || "").length + (contentInput.value || "").length;
             document.getElementById('char-count').innerText = `${total} caracteres`;
         }
 
-        document.getElementById('toggle-sidebar').onclick = () => {
-            document.getElementById('sidebar').classList.toggle('hidden');
-        };
+        titleInput.addEventListener('input', updateCharCount);
+        contentInput.addEventListener('input', updateCharCount);
+        document.getElementById('toggle-sidebar').onclick = () => document.getElementById('sidebar').classList.toggle('hidden');
     </script>
 </body>
 </html>
