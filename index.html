@@ -175,14 +175,18 @@
         // Lógica de Configuración Segura
         let firebaseConfig = null;
         try {
-            if (typeof __firebase_config !== 'undefined') {
+            // Verificamos que __firebase_config exista y tenga contenido válido antes de intentar parsear
+            if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config !== 'null') {
                 firebaseConfig = JSON.parse(__firebase_config);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.warn("Fallo al cargar configuración de Firebase.");
+        }
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'prod-v1';
         let isConnected = false;
 
+        // Solo inicializamos si tenemos una API Key válida para evitar errores 404 de recursos de red
         if (firebaseConfig && firebaseConfig.apiKey) {
             const app = initializeApp(firebaseConfig);
             const db = getFirestore(app);
@@ -192,10 +196,14 @@
             let currentId = urlParams.get('id') || 'index';
 
             const initAuth = async () => {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (err) {
+                    console.error("Error en autenticación:", err);
                 }
             };
 
@@ -211,7 +219,7 @@
             async function setupSync(db, auth, roomId) {
                 if (!auth.currentUser) return;
                 
-                // REGLA 1: Usar la ruta estricta /artifacts/{appId}/public/data/{collection}
+                // Ruta estricta de Firestore
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'notes', roomId);
                 document.getElementById('room-display').innerText = `#${roomId}`;
 
@@ -225,10 +233,10 @@
                         updateCharCount();
                     } else {
                         setDoc(docRef, { title: "", content: "", isDone: false, lastUpdated: Date.now() })
-                        .catch(err => console.error("Error creating doc:", err));
+                        .catch(err => console.error("Error al crear documento:", err));
                     }
                 }, (error) => {
-                    console.error("Firestore snapshot error:", error);
+                    console.error("Error en snapshot de Firestore:", error);
                 });
 
                 const save = () => {
@@ -237,17 +245,22 @@
                         title: titleInput.value,
                         content: contentInput.value,
                         lastUpdated: Date.now()
-                    }).catch(err => console.error("Save error:", err));
+                    }).catch(err => console.error("Error al guardar:", err));
                 };
                 
                 titleInput.oninput = save;
                 contentInput.oninput = save;
+                
+                mainCheck.onclick = () => {
+                    const isDone = !mainCheck.classList.contains('bg-[#34c759]');
+                    updateCheckUI(isDone);
+                    updateDoc(docRef, { isDone, lastUpdated: Date.now() });
+                };
             }
 
             async function loadHistory(db, auth, currentRoomId) {
                 if (!auth.currentUser) return;
                 try {
-                    // REGLA 1: Ruta estricta para colecciones
                     const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'notes');
                     const q = query(colRef);
                     const snaps = await getDocs(q);
@@ -255,7 +268,7 @@
                     const docs = [];
                     snaps.forEach(s => docs.push({ id: s.id, ...s.data() }));
                     
-                    // REGLA 2: Ordenar en memoria JS para evitar errores de índices complejos
+                    // Ordenamos en memoria para evitar errores de índices en Firebase
                     docs.sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
 
                     const today = new Date().setHours(0,0,0,0);
@@ -277,18 +290,22 @@
                         else historyList.older.appendChild(div);
                     });
                 } catch (e) {
-                    console.error("Load history error:", e);
+                    console.error("Error cargando historial:", e);
                 }
             }
 
             initAuth();
         } else {
-            // MODO LOCAL (GitHub Pages sin Firebase configurado)
+            // MODO LOCAL / FALLBACK (Evita errores 404 al no intentar conectar a servicios inexistentes)
             dateDisplay.innerText = "Estado: Local (Sin Sincronizar)";
             connectionStatus.style.backgroundColor = '#ff3b30'; 
             
             document.getElementById('new-note').onclick = showWarning;
             document.getElementById('copy-link').onclick = showWarning;
+            mainCheck.onclick = () => {
+                const isDone = !mainCheck.classList.contains('bg-[#34c759]');
+                updateCheckUI(isDone);
+            };
         }
 
         function updateCheckUI(done) {
