@@ -24,7 +24,6 @@
         
         textarea { resize: none; outline: none; background: transparent; }
         
-        /* Checkbox Custom */
         .check-container {
             width: 28px;
             height: 28px;
@@ -58,135 +57,133 @@
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
     </style>
 </head>
-<body class="h-screen flex overflow-hidden">
+<body class="h-screen flex overflow-hidden flex-col">
 
-    <!-- Sidebar (Historial) -->
-    <aside id="sidebar" class="hidden md:flex flex-col w-72 border-r border-white/10 bg-[#0a0a0a] z-20">
-        <div class="p-6">
-            <h2 class="text-xs font-bold uppercase tracking-widest text-white/30 mb-6">Historial</h2>
+    <div class="flex flex-1 overflow-hidden">
+        <aside id="sidebar" class="hidden md:flex flex-col w-72 border-r border-white/10 bg-[#0a0a0a] z-20">
+            <div class="p-6">
+                <h2 class="text-xs font-bold uppercase tracking-widest text-white/30 mb-6">Historial</h2>
+                <div id="history-list" class="space-y-6 overflow-y-auto max-h-[calc(100vh-160px)]">
+                    <div id="group-today">
+                        <h3 class="text-[10px] text-white/20 mb-3 px-2">HOY</h3>
+                        <div class="space-y-1" id="list-today"></div>
+                    </div>
+                    <div id="group-yesterday">
+                        <h3 class="text-[10px] text-white/20 mb-3 px-2">AYER</h3>
+                        <div class="space-y-1" id="list-yesterday"></div>
+                    </div>
+                    <div id="group-older">
+                        <h3 class="text-[10px] text-white/20 mb-3 px-2">ANTERIORES</h3>
+                        <div class="space-y-1" id="list-older"></div>
+                    </div>
+                </div>
+            </div>
+            <button id="new-note" class="mt-auto m-4 p-3 rounded-xl bg-white text-black font-semibold text-sm hover:bg-white/90 transition-all">
+                Nueva Nota
+            </button>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0 bg-black relative">
+            <header class="apple-blur border-b border-white/10 p-4 flex justify-between items-center z-10">
+                <div class="flex items-center gap-3">
+                    <button id="toggle-sidebar" class="md:hidden text-white/50 hover:text-white">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </button>
+                    <div id="connection-status" class="w-2 h-2 rounded-full bg-yellow-500"></div>
+                    <h1 class="text-sm font-medium tracking-tight text-white/90">SyncNote <span id="room-display" class="text-white/40 ml-2"></span></h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span id="sync-notice" class="hidden text-[10px] text-white/30 uppercase tracking-widest">Sincronizando</span>
+                    <button id="copy-link" class="text-xs bg-white/10 hover:bg-white/20 transition-all px-4 py-2 rounded-full font-medium">
+                        Compartir
+                    </button>
+                </div>
+            </header>
+
+            <main class="flex-1 flex flex-col p-6 md:p-12 max-w-5xl mx-auto w-full animate-fade">
+                <div class="flex items-start gap-4 mb-6">
+                    <div id="main-check" class="check-container mt-1">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17L4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div class="flex-1">
+                        <input type="text" id="note-title" placeholder="Título de la reunión..." 
+                               class="bg-transparent text-3xl md:text-5xl font-bold placeholder-white/10 outline-none w-full mb-2">
+                        <div id="note-date" class="text-xs text-white/30 font-medium">Conectando...</div>
+                    </div>
+                </div>
+                <textarea id="note-content" placeholder="Escribe los puntos clave que no debes olvidar..." 
+                          class="flex-1 w-full text-lg md:text-2xl leading-relaxed text-white/70 placeholder-white/5"></textarea>
+            </main>
             
-            <div id="history-list" class="space-y-6 overflow-y-auto max-h-[calc(100vh-120px)]">
-                <!-- Grupos de fecha -->
-                <div id="group-today">
-                    <h3 class="text-[10px] text-white/20 mb-3 px-2">HOY</h3>
-                    <div class="space-y-1" id="list-today"></div>
-                </div>
-                <div id="group-yesterday">
-                    <h3 class="text-[10px] text-white/20 mb-3 px-2">AYER</h3>
-                    <div class="space-y-1" id="list-yesterday"></div>
-                </div>
-                <div id="group-older">
-                    <h3 class="text-[10px] text-white/20 mb-3 px-2">ANTERIORES</h3>
-                    <div class="space-y-1" id="list-older"></div>
-                </div>
-            </div>
+            <footer class="p-4 border-t border-white/5 flex justify-between text-[10px] text-white/20 uppercase tracking-widest">
+                <span>SyncNote Engine v2.5</span>
+                <span id="char-count">0 caracteres</span>
+            </footer>
         </div>
-        <button id="new-note" class="mt-auto m-4 p-3 rounded-xl bg-white text-black font-semibold text-sm hover:bg-white/90 transition-all">
-            Nueva Nota
-        </button>
-    </aside>
-
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col min-w-0 bg-black relative">
-        <!-- Header -->
-        <header class="apple-blur border-b border-white/10 p-4 flex justify-between items-center z-10">
-            <div class="flex items-center gap-3">
-                <button id="toggle-sidebar" class="md:hidden text-white/50 hover:text-white">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                </button>
-                <div id="connection-status" class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
-                <h1 class="text-sm font-medium tracking-tight text-white/90">SyncNote <span id="room-display" class="text-white/40 ml-2"></span></h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <span id="sync-notice" class="hidden text-[10px] text-white/30 uppercase tracking-widest">Sincronizando</span>
-                <button id="copy-link" class="text-xs bg-white/10 hover:bg-white/20 transition-all px-4 py-2 rounded-full font-medium">
-                    Compartir
-                </button>
-            </div>
-        </header>
-
-        <!-- Editor -->
-        <main class="flex-1 flex flex-col p-6 md:p-12 max-w-5xl mx-auto w-full animate-fade">
-            <div class="flex items-start gap-4 mb-6">
-                <!-- Check Circle -->
-                <div id="main-check" class="check-container mt-1">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17L4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </div>
-                
-                <div class="flex-1">
-                    <input type="text" id="note-title" placeholder="Título de la reunión..." 
-                           class="bg-transparent text-3xl md:text-5xl font-bold placeholder-white/10 outline-none w-full mb-2">
-                    <div id="note-date" class="text-xs text-white/30 font-medium">Cargando fecha...</div>
-                </div>
-            </div>
-
-            <textarea id="note-content" placeholder="Escribe los puntos clave que no debes olvidar..." 
-                      class="flex-1 w-full text-lg md:text-2xl leading-relaxed text-white/70 placeholder-white/5"></textarea>
-        </main>
-        
-        <footer class="p-4 border-t border-white/5 flex justify-between text-[10px] text-white/20 uppercase tracking-widest">
-            <span>Editor Colaborativo v2.0</span>
-            <span id="char-count">0 caracteres</span>
-        </footer>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        const firebaseConfig = {
-            apiKey: "",
-            authDomain: "sync-note-placeholder.firebaseapp.com",
-            projectId: "sync-note-placeholder",
-            storageBucket: "sync-note-placeholder.appspot.com",
-            messagingSenderId: "12345",
-            appId: "1:12345:web:12345"
-        };
+        // Global variables provided by environment
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        const actualConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : firebaseConfig;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'active-memory-v1';
-
-        const app = initializeApp(actualConfig);
+        const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
 
         // State
         const urlParams = new URLSearchParams(window.location.search);
-        let currentRoomId = urlParams.get('id') || Math.random().toString(36).substring(2, 10);
-        if (!urlParams.get('id')) window.history.replaceState(null, '', `?id=${currentRoomId}`);
+        let currentRoomId = urlParams.get('id') || 'nota-principal';
+        let isRemoteUpdate = false;
+        let isDone = false;
+        let saveTimeout = null;
+        let userAuthenticated = false;
 
+        // DOM Elements
         const titleInput = document.getElementById('note-title');
         const contentInput = document.getElementById('note-content');
         const mainCheck = document.getElementById('main-check');
         const dateDisplay = document.getElementById('note-date');
+        const connectionStatus = document.getElementById('connection-status');
         const historyList = {
             today: document.getElementById('list-today'),
             yesterday: document.getElementById('list-yesterday'),
             older: document.getElementById('list-older')
         };
 
-        let isRemoteUpdate = false;
-        let isDone = false;
+        // 1. Auth Logic (Rule 3)
+        const initAuth = async () => {
+            try {
+                if (initialToken) {
+                    await signInWithCustomToken(auth, initialToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+            }
+        };
 
-        // Auth
-        signInAnonymously(auth).then(() => {
-            document.getElementById('connection-status').style.backgroundColor = '#34c759';
-            document.getElementById('connection-status').style.boxShadow = '0 0 10px #34c759';
-            initSync();
-            loadHistory();
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userAuthenticated = true;
+                connectionStatus.style.backgroundColor = '#34c759';
+                initSync();
+                loadHistory();
+            }
         });
 
-        function formatFriendlyDate(timestamp) {
-            if (!timestamp) return "Recién creado";
-            const date = new Date(timestamp);
-            return date.toLocaleString('es-ES', { 
-                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
-            });
-        }
-
+        // 2. Sync Logic (Rule 1 & 2)
         function initSync() {
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', currentRoomId);
+            if (!auth.currentUser) return;
+
+            // Strict Path: /artifacts/{appId}/public/data/{collectionName}/{docId}
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'notes', currentRoomId);
             document.getElementById('room-display').innerText = `#${currentRoomId}`;
 
             onSnapshot(docRef, (snap) => {
@@ -196,36 +193,36 @@
                         isRemoteUpdate = true;
                         if (document.activeElement !== titleInput) titleInput.value = data.title || "";
                         if (document.activeElement !== contentInput) contentInput.value = data.content || "";
-                        
                         isDone = data.isDone || false;
                         mainCheck.classList.toggle('checked', isDone);
-                        dateDisplay.innerText = `Modificado: ${formatFriendlyDate(data.lastUpdated)}`;
-                        
+                        dateDisplay.innerText = `Modificado: ${new Date(data.lastUpdated).toLocaleTimeString()}`;
                         updateCharCount();
                         isRemoteUpdate = false;
                     }
                 } else {
                     setDoc(docRef, { 
-                        title: "", 
-                        content: "", 
-                        isDone: false, 
-                        lastUpdated: Date.now(),
-                        createdAt: Date.now() 
-                    });
+                        title: "", content: "", isDone: false, 
+                        lastUpdated: Date.now(), createdAt: Date.now() 
+                    }).catch(() => {});
                 }
-            });
+            }, (err) => console.log("Snapshot inhibited by permissions - retrying..."));
 
             const save = () => {
-                if (isRemoteUpdate) return;
-                document.getElementById('sync-notice').classList.remove('hidden');
-                updateDoc(docRef, {
-                    title: titleInput.value,
-                    content: contentInput.value,
-                    isDone: isDone,
-                    lastUpdated: Date.now()
-                }).finally(() => {
-                    setTimeout(() => document.getElementById('sync-notice').classList.add('hidden'), 500);
-                });
+                if (isRemoteUpdate || !auth.currentUser) return;
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    document.getElementById('sync-notice').classList.remove('hidden');
+                    updateDoc(docRef, {
+                        title: titleInput.value,
+                        content: contentInput.value,
+                        isDone: isDone,
+                        lastUpdated: Date.now()
+                    }).then(() => {
+                        loadHistory();
+                    }).finally(() => {
+                        setTimeout(() => document.getElementById('sync-notice').classList.add('hidden'), 500);
+                    });
+                }, 600); 
             };
 
             titleInput.oninput = save;
@@ -238,50 +235,48 @@
         }
 
         async function loadHistory() {
-            const colRef = collection(db, 'artifacts', appId, 'public', 'data');
-            // Nota: En un entorno real usaríamos query(colRef, orderBy('lastUpdated', 'desc'))
-            // Pero por RULE 2, filtramos en memoria.
-            const snaps = await getDocs(colRef);
-            const docs = [];
-            snaps.forEach(s => docs.push({id: s.id, ...s.data()}));
-            
-            // Ordenar por fecha
-            docs.sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
+            if (!auth.currentUser) return;
+            try {
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'notes');
+                const snaps = await getDocs(colRef);
+                const docs = [];
+                snaps.forEach(s => docs.push({id: s.id, ...s.data()}));
+                
+                // Sort in memory (Rule 2)
+                docs.sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
 
-            const now = new Date();
-            const today = new Date(now.setHours(0,0,0,0)).getTime();
-            const yesterday = today - 86400000;
+                const today = new Date().setHours(0,0,0,0);
+                const yesterday = today - 86400000;
 
-            Object.values(historyList).forEach(el => el.innerHTML = '');
-
-            docs.forEach(d => {
-                const itemDate = d.lastUpdated || Date.now();
-                const div = document.createElement('div');
-                div.className = `sidebar-item p-3 rounded-lg cursor-pointer transition-all ${d.id === currentRoomId ? 'active-note' : ''}`;
-                div.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full ${d.isDone ? 'bg-[#34c759]' : 'bg-white/10'}"></div>
-                        <div class="truncate text-xs font-medium text-white/80">${d.title || 'Nota sin título'}</div>
-                    </div>
-                    <div class="text-[9px] text-white/20 mt-1 ml-4">${formatFriendlyDate(itemDate)}</div>
-                `;
-                div.onclick = () => window.location.search = `?id=${d.id}`;
-
-                if (itemDate >= today) historyList.today.appendChild(div);
-                else if (itemDate >= yesterday) historyList.yesterday.appendChild(div);
-                else historyList.older.appendChild(div);
-            });
+                Object.values(historyList).forEach(el => el.innerHTML = '');
+                docs.forEach(d => {
+                    const div = document.createElement('div');
+                    div.className = `sidebar-item p-3 rounded-lg cursor-pointer transition-all ${d.id === currentRoomId ? 'active-note' : ''}`;
+                    div.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full ${d.isDone ? 'bg-[#34c759]' : 'bg-white/10'}"></div>
+                            <div class="truncate text-xs font-medium text-white/80">${d.title || 'Sin título'}</div>
+                        </div>
+                    `;
+                    div.onclick = () => { window.location.search = `?id=${d.id}`; };
+                    
+                    const time = d.lastUpdated || 0;
+                    if (time >= today) historyList.today.appendChild(div);
+                    else if (time >= yesterday) historyList.yesterday.appendChild(div);
+                    else historyList.older.appendChild(div);
+                });
+            } catch (e) {}
         }
 
         function updateCharCount() {
-            const count = titleInput.value.length + contentInput.value.length;
-            document.getElementById('char-count').innerText = `${count} caracteres`;
+            document.getElementById('char-count').innerText = `${titleInput.value.length + contentInput.value.length} caracteres`;
         }
 
         document.getElementById('copy-link').onclick = () => {
+            const url = window.location.href;
             const temp = document.createElement("input");
             document.body.appendChild(temp);
-            temp.value = window.location.href;
+            temp.value = url;
             temp.select();
             document.execCommand("copy");
             document.body.removeChild(temp);
@@ -290,8 +285,15 @@
             setTimeout(() => btn.innerText = "Compartir", 2000);
         };
 
-        document.getElementById('new-note').onclick = () => window.location.search = `?id=${Math.random().toString(36).substring(2, 10)}`;
-        document.getElementById('toggle-sidebar').onclick = () => document.getElementById('sidebar').classList.toggle('hidden');
+        document.getElementById('new-note').onclick = () => {
+            window.location.search = `?id=nota-${Math.random().toString(36).substring(2, 7)}`;
+        };
+        
+        document.getElementById('toggle-sidebar').onclick = () => {
+            document.getElementById('sidebar').classList.toggle('hidden');
+        };
+
+        initAuth();
     </script>
 </body>
 </html>
